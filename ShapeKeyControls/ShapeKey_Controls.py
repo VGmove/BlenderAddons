@@ -29,12 +29,12 @@ from bpy.types import Panel, Operator, PropertyGroup
 
 class Properties(PropertyGroup):
 	bpy.types.Scene.mirror_by_topo = bpy.props.BoolProperty( name="Mirror by Topology",
-															 description="Mirror shapekey by topology",
-															 default = False )
+								 description="Mirror shapekey by topology",
+								 default = False )
 
 	bpy.types.Scene.remove_original = bpy.props.BoolProperty( name="Remove Original Key",
-															  description="Combine shapekey remove originals",
-															  default = True)
+								  description="Combine shapekey remove originals",
+								  default = True)
 
 class PROPERTIES_PT_Panel(Panel):
 	bl_label = "Shape Keys Controls"
@@ -346,19 +346,19 @@ class ResetAllVertex(Operator):
 		return {'FINISHED'}
 
 classes = [	PROPERTIES_PT_Panel,
-					Properties,
-					MirrorSelected,
-					Mirror_LtoR,
-					Mirror_All,
-					Mirror_RtoL,
-					Merge,
-					ApplyBasis,
-					AddEnd_L,
-					AddEnd_Merge,
-					AddEnd_R,
-					ResetSelectedVertex,
-					ResetAllVertex,
-			   ]
+		Properties,
+		MirrorSelected,
+		Mirror_LtoR,
+		Mirror_All,
+		Mirror_RtoL,
+		Merge,
+		ApplyBasis,
+		AddEnd_L,
+		AddEnd_Merge,
+		AddEnd_R,
+		ResetSelectedVertex,
+		ResetAllVertex,
+	]
 
 def register():
 	for cls in classes:
