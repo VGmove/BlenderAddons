@@ -1,12 +1,12 @@
 ![screenshot](.meta/screenshot.png)
 
 # Auto SetKey
-Аддон для автоматизации ключевой анимации.
+Addon for automation of key animation.
 
-- Автоматически создает группу в материале 
-для управелния параметрами цвета и прозрачности.
+- Automatically creates a group in the material
+to control color and transparency parameters.
 
-- Вставляет ключи с задаными параметрами
+- Inserts keys with specified parameters
 
 # Download
 Download [script](...).
