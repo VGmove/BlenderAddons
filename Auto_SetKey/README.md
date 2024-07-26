@@ -9,4 +9,4 @@ to control color and transparency parameters.
 - Inserts keys with specified parameters
 
 # Download
-Download [script](...).
+Download [script](https://github.com/VGmove/BlenderAddons/releases/download/BlenderAddons/Auto_SetKey.zip).
