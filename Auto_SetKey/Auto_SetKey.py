@@ -31,7 +31,7 @@ from bpy.props import (StringProperty,
                        FloatProperty,
                        EnumProperty,
                        PointerProperty,
-					   FloatVectorProperty,
+		       FloatVectorProperty,
                        )
 from bpy.types import (Panel,
                        Operator,
