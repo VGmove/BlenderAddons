@@ -31,10 +31,10 @@ from bpy.props import (StringProperty,
                        FloatProperty,
                        EnumProperty,
                        PointerProperty,
-					   FloatVectorProperty,
+                       FloatVectorProperty,
                        )
 from bpy.types import (Menu,
-					   Panel,
+                       Panel,
                        Operator,
                        PropertyGroup,
                        )
