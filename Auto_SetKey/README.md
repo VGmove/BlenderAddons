@@ -1,4 +1,4 @@
-![screenshot](.meta/screenshot.png)
+![screenshot](.meta/screenshot.png) 
 
 # Auto SetKey
 Addon for automation of key animation.
