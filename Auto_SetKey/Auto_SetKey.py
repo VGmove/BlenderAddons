@@ -24,6 +24,7 @@ bl_info = {
 	"category" : "Animation"
 }
 
+import os
 import bpy
 from bpy.props import (StringProperty,
                        BoolProperty,
@@ -40,7 +41,7 @@ from bpy.types import (Menu,
                        )
 
 # Scene Properties
-class Properties(PropertyGroup):
+class SETKEY_Properties(PropertyGroup):
 	blend_blink : FloatProperty(
 		name="Blend:",
 		description="Blend of blinks",
@@ -48,15 +49,13 @@ class Properties(PropertyGroup):
 		min = 0.5,
 		max = 1
 	)
-	
-	length_blink : IntProperty(
-		name="Length:",
+	duration_blink : IntProperty(
+		name="Duration:",
 		description="Step length in frames",
 		default = 12,
 		min = 2,
 		max = 100
 	)
-
 	count_blink : IntProperty(
 		name="Count:",
 		description="Number of blinks",
@@ -64,15 +63,13 @@ class Properties(PropertyGroup):
 		min = 1,
 		max = 100
 	)
-
 	duration_fade : IntProperty(
-		name="Duration Fade:",
+		name="Duration:",
 		description="Step length in frames",
 		default = 12,
 		min = 3,
 		max = 100
 	)
-
 	color_blink : FloatVectorProperty(
 		name="Color",
 		description="Color object blinks",
@@ -81,8 +78,7 @@ class Properties(PropertyGroup):
 		size = 4,
 		min = 0, 
 		max = 1
-	)
-																
+	)													
 	toggle_type : EnumProperty(
 		items= (
 			("1", "Show", "Set keys for show an object"),    
@@ -91,28 +87,51 @@ class Properties(PropertyGroup):
 		name = "Transparency type",
 		default = "2"
 	)
+	duration_pause : IntProperty(
+		name="Duration:",
+		description="Step length in frames",
+		default = 24,
+		min = 5,
+		max = 50
+	)
+	move_cursor : BoolProperty(
+		name="Move Timeline Cursor",
+		description="Move Timeline Cursor to end new keyframe",
+		default = True
+	)
+	single_user : BoolProperty(
+		name="Make Single User",
+		description="Make single user for materials",
+		default = True
+	)
 
 #Operators
 class SETKEY_Blink(Operator):
-	bl_idname = "wm.setkey_blink"
-	bl_label = "SetKey Blink"
+	bl_idname = "action.setkey_blink"
+	bl_label = "Set Key Blink"
 	bl_description = "Auto set key for blink"
 	bl_options = {"REGISTER", "UNDO"}
 
 	def execute(self, context):
 		# Get Materials
-		selected_objects = [obj for obj in bpy.context.selected_objects]
 		materials = []
-		for object in selected_objects:
+		for object in bpy.context.selected_objects:
 			material = object.active_material
-			if material and material.use_nodes and not material in materials:
-				materials.append(material)
+			if material and material.use_nodes:
+				if context.scene.property.single_user and material.users > 1:
+					user_count = sum(p.active_material == material for p in bpy.context.selected_objects)
+					if material.users != user_count:
+						print(object.name, material.name, material.users, user_count)
+						object.active_material = object.active_material.copy()
+						object.active_material.node_tree.animation_data.action = object.active_material.node_tree.animation_data.action.copy()
+				if not object.active_material in materials:
+					materials.append(object.active_material)
 			else: continue
 		
 		for material in materials:
 			# Create variable
 			material_nodes = material.node_tree.nodes
-			links = material.node_tree.links			
+			links = material.node_tree.links
 
 			# Check available OUTPUT_MATERIAL
 			material_output = None
@@ -122,7 +141,7 @@ class SETKEY_Blink(Operator):
 					break
 			if material_output is None:
 				material_output = material_nodes.new("ShaderNodeOutputMaterial")
-			
+
 			# Check available group
 			group_node = None
 			groups = [node for node in material_nodes if node.type == "GROUP"]
@@ -135,8 +154,9 @@ class SETKEY_Blink(Operator):
 				group_node = self.create_group(context, material_output, material_nodes, links)
 				self.set_key(context, group_node)
 
-		curent_frame = bpy.context.scene.frame_current
-		context.scene.frame_set(curent_frame + (context.scene.property.length_blink * (context.scene.property.count_blink * 2)))
+		if context.scene.property.move_cursor:
+			curent_frame = bpy.context.scene.frame_current
+			context.scene.frame_set(curent_frame + (context.scene.property.duration_blink * (context.scene.property.count_blink * 2)))
 		return {"FINISHED"}
 
 	def create_group(self, context, material_output, material_nodes, links):
@@ -192,25 +212,31 @@ class SETKEY_Blink(Operator):
 		for i in range((context.scene.property.count_blink * 2) + 1):
 			value.keyframe_insert("default_value", frame = curent_frame)
 			color.keyframe_insert("default_value", frame = curent_frame)
-			curent_frame = curent_frame + context.scene.property.length_blink
+			curent_frame = curent_frame + context.scene.property.duration_blink
 			value.default_value = not value.default_value
 			value.default_value = max(min(value.default_value, context.scene.property.blend_blink), 0)
 		return {"FINISHED"}
 
 class SETKEY_Transparent(Operator):
-	bl_idname = "wm.setkey_transparent"
-	bl_label = "SetKey Transparent"
+	bl_idname = "action.setkey_transparent"
+	bl_label = "Set Key Transparent"
 	bl_description = "Auto set key for transparency"
 	bl_options = {"REGISTER", "UNDO"}
 
 	def execute(self, context):
 		# Get Materials
-		selected_objects = [obj for obj in bpy.context.selected_objects]
 		materials = []
-		for object in selected_objects:
+		for object in bpy.context.selected_objects:
 			material = object.active_material
-			if material and material.use_nodes and not material in materials:
-				materials.append(material)
+			if material and material.use_nodes:
+				if context.scene.property.single_user and material.users > 1:
+					user_count = sum(p.active_material == material for p in bpy.context.selected_objects)
+					if material.users != user_count:
+						print(object.name, material.name, material.users, user_count)
+						object.active_material = object.active_material.copy()
+						object.active_material.node_tree.animation_data.action = object.active_material.node_tree.animation_data.action.copy()
+				if not object.active_material in materials:
+					materials.append(object.active_material)
 			else: continue
 		
 		for material in materials:
@@ -243,8 +269,10 @@ class SETKEY_Transparent(Operator):
 				group_node = self.create_group(context, material_output, material_nodes, links)
 				self.set_key(context, group_node)
 		
-		curent_frame = bpy.context.scene.frame_current
-		context.scene.frame_set(curent_frame + context.scene.property.duration_fade)
+		
+		if context.scene.property.move_cursor:
+			curent_frame = bpy.context.scene.frame_current
+			context.scene.frame_set(curent_frame + context.scene.property.duration_fade)
 		return {"FINISHED"}
 	
 	def create_group(self, context, material_output, material_nodes, links):
@@ -304,7 +332,7 @@ class SETKEY_Transparent(Operator):
 		return {"FINISHED"}
 
 class SETKEY_Transparent_Hide(SETKEY_Transparent):
-	bl_idname = "wm.setkey_transparent_hide"
+	bl_idname = "action.setkey_transparent_hide"
 	bl_label = "Transparent Hide"
 	bl_options = {"REGISTER", "UNDO"}
 
@@ -314,7 +342,7 @@ class SETKEY_Transparent_Hide(SETKEY_Transparent):
 		return {'FINISHED'}
 
 class SETKEY_Transparent_Show(SETKEY_Transparent):
-	bl_idname = "wm.setkey_transparent_show"
+	bl_idname = "action.setkey_transparent_show"
 	bl_label = "Transparent Show"
 	bl_options = {"REGISTER", "UNDO"}
 
@@ -323,15 +351,117 @@ class SETKEY_Transparent_Show(SETKEY_Transparent):
 		SETKEY_Transparent.execute(self, context)
 		return {'FINISHED'}
 
-# Draw UI
-class MAINPANEL_panel:
+# Pause
+class SETKEY_Marker(Operator):
+	bl_idname = "action.setkey_marker"
+	bl_label = "Set Marker Pause"
+	bl_description = "Set marker for pause"
+	bl_options = {"REGISTER", "UNDO"}
+
+	def execute(self, context):
+		curent_frame = bpy.context.scene.frame_current
+		context.scene.timeline_markers.new('P', frame=curent_frame)
+		return {'FINISHED'}
+
+class SETKEY_Marker_Save(Operator):
+	bl_idname = "action.setkey_marker_save"
+	bl_label = "Save Marker"
+	bl_description = "Save markers to file in output render directory"
+	bl_options = {"REGISTER", "UNDO"}
+
+	def execute(self, context):
+		markers = self.get_markers(context)
+		self.save_markers(context, markers)
+		return {'FINISHED'}
+
+	def get_markers(self, context):
+		markers = []
+		for marker in bpy.context.scene.timeline_markers:
+			if marker.name == "P" and marker.frame not in markers:
+				markers.extend([marker.frame])
+		markers = sorted(markers)
+		return markers
+	
+	def save_markers(self, context, markers):
+		output_path = bpy.context.scene.render.filepath
+		abs_output_path = bpy.path.abspath(output_path)
+		
+		if abs_output_path[-1] != '\\':
+			abs_output_path = abs_output_path.rpartition('\\')[0] 
+			abs_output_path = abs_output_path + "\\"
+		
+		dir_check = os.path.dirname(abs_output_path)
+		os.makedirs(dir_check, exist_ok=True)
+		
+		with open(abs_output_path + "pauses.txt", "w") as f:
+			for marker in markers:
+				f.write(f"{marker} ")
+		return {'FINISHED'}
+
+class SETKEY_Pause(Operator):
+	bl_idname = "action.setkey_pause"
+	bl_label = "Create Pause"
+	bl_description = "Create pause on selected sequence"
+	bl_options = {"REGISTER", "UNDO"}
+
+	def execute(self, context):
+		active_strip = bpy.context.scene.sequence_editor.active_strip
+		if len(bpy.context.selected_sequences) == 1 and active_strip.type == "IMAGE":
+			active_strip_path = bpy.path.abspath(active_strip.directory)
+			markers = self.get_markers(context, active_strip_path)
+			if markers:
+				self.create_pause(context, markers, active_strip, active_strip_path)
+		return {"FINISHED"}
+
+	def get_markers(self, context, active_strip_path):
+		markers = []
+		pause_file = active_strip_path + "pauses.txt"
+		if os.path.exists(pause_file):
+			with open(pause_file) as f:
+				for marker in f.readline().split():
+					if marker.isdigit():
+						markers.append(int(marker))
+			return markers
+
+	def create_pause(self, context, markers, active_strip, active_strip_path):
+		step = 0
+		start_frame = active_strip.frame_final_start
+		active_strip_length = active_strip.frame_final_end
+		duration_pause = context.scene.property.duration_pause
+		for marker in markers:
+			end_strip = bpy.context.selected_sequences[-1]
+			marker_offset = marker + start_frame + step # -set_start_frame if start not 0 frame			
+			if marker_offset in range(end_strip.frame_final_start, end_strip.frame_final_end + 1):
+				next_strip = end_strip.split(marker_offset, "SOFT")
+				if next_strip is None:
+					next_strip = end_strip
+
+				next_strip.frame_start += duration_pause
+				if marker == markers[-1] and marker_offset == end_strip.frame_final_end - duration_pause:
+					next_strip.frame_start -= duration_pause
+				
+				sequence_image = next_strip.strip_elem_from_frame(marker_offset + duration_pause).filename
+				image = active_strip_path + sequence_image
+				sequences = bpy.context.scene.sequence_editor.sequences
+				image_strip = sequences.new_image("Image", image, active_strip.channel, marker_offset)
+				image_strip.select = False
+				image_strip.frame_final_duration = duration_pause
+				image_strip.color_tag = "COLOR_05"
+				
+				step += context.scene.property.duration_pause
+		bpy.context.scene.frame_end = active_strip_length + step - 1
+		bpy.context.scene.frame_start = start_frame
+		return {'FINISHED'}
+
+# Draw UI TimeLine
+class SETKEY_panel:
 	bl_space_type = "DOPESHEET_EDITOR"
 	bl_region_type = "UI"
 	bl_category = "Action"
 	bl_options = {"DEFAULT_CLOSED"}
 
-class PANEL_PT_panel(MAINPANEL_panel, Panel):
-	bl_idname = "PANEL_PT_panel"
+class SETKEY_PT_panel(SETKEY_panel, Panel):
+	bl_idname = "SETKEY_PT_panel"
 	bl_label = "Auto SetKey"
 
 	@classmethod
@@ -341,8 +471,8 @@ class PANEL_PT_panel(MAINPANEL_panel, Panel):
 	def draw(self, context):
 		layout = self.layout
 
-class PANEL_PT_subpanel_1(MAINPANEL_panel, Panel):
-	bl_parent_id = "PANEL_PT_panel"
+class SETKEY_PT_subpanel_1(SETKEY_panel, Panel):
+	bl_parent_id = "SETKEY_PT_panel"
 	bl_label = "Blink"
 
 	def draw(self, context):
@@ -351,17 +481,16 @@ class PANEL_PT_subpanel_1(MAINPANEL_panel, Panel):
 		col.prop(context.scene.property, "color_blink")
 		col = layout.column(align=True)
 		col.prop(context.scene.property, "blend_blink")
-		col.prop(context.scene.property, "length_blink")
+		col.prop(context.scene.property, "duration_blink")
 		col.prop(context.scene.property, "count_blink")
 		col.separator()
 		row = col.row()
-		row.label(text="Set keys:")
+		row.label(text="Set Keys:")
 		row.scale_x = 15
-		row.operator(SETKEY_Blink.bl_idname, text="", icon="REC")
+		row.operator(SETKEY_Blink.bl_idname, text="", icon="KEYFRAME_HLT")
 
-
-class PANEL_PT_subpanel_2(MAINPANEL_panel, Panel):
-	bl_parent_id = "PANEL_PT_panel"
+class SETKEY_PT_subpanel_2(SETKEY_panel, Panel):
+	bl_parent_id = "SETKEY_PT_panel"
 	bl_label = "Transparent"
 
 	def draw(self, context):
@@ -369,25 +498,54 @@ class PANEL_PT_subpanel_2(MAINPANEL_panel, Panel):
 		col = layout.column()
 		row = col.row()
 		row.alignment = "RIGHT"
-		row.prop(context.scene.property, "toggle_type", icon = "PLUGIN", expand=True)
+		row.prop(context.scene.property, "toggle_type", expand=True)
 		col.prop(context.scene.property, "duration_fade")
 		col.separator()
 		row = col.row()
-		row.label(text="Set keys:")
+		row.label(text="Set Keys:")
 		row.scale_x = 15
-		row.operator(SETKEY_Transparent.bl_idname, text="", icon="REC")
+		row.operator(SETKEY_Transparent.bl_idname, text="", icon="KEYFRAME_HLT")
 
-class CONTEXT_MT_menu(Menu):
-	bl_idname = "CONTEXT_MT_menu"
+class SETKEY_PT_subpanel_3(SETKEY_panel, Panel):
+	bl_parent_id = "SETKEY_PT_panel"
+	bl_label = "Pause"
+
+	def draw(self, context):
+		layout = self.layout
+		col = layout.column()
+		row = col.row()
+		row.alignment = "LEFT"
+		row.label(text="Save Markers:")
+		row = col.row()
+		row.operator(SETKEY_Marker_Save.bl_idname, text="Save", icon="FILE")
+		col.separator()
+		row = col.row()
+		row.label(text="Set Marker:")
+		row.scale_x = 15
+		row.operator(SETKEY_Marker.bl_idname, text="", icon="MARKER_HLT")
+
+class SETKEY_PT_subpanel_4(SETKEY_panel, Panel):
+	bl_parent_id = "SETKEY_PT_panel"
+	bl_label = "Settings"
+
+	def draw(self, context):
+		layout = self.layout
+		col = layout.column()
+		col.alignment = "LEFT"
+		col.prop(context.scene.property, "move_cursor")
+		col.prop(context.scene.property, "single_user")
+
+class SETKEY_MT_menu(Menu):
+	bl_idname = "SETKEY_MT_menu"
 	bl_label = "Auto SetKey"
 
 	def draw(self, context):
 		layout = self.layout
 		layout.separator()
-		layout.menu(CONTEXT_MT_submenu.bl_idname)
+		layout.menu(SETKEY_MT_submenu.bl_idname)
 
-class CONTEXT_MT_submenu(Menu):
-	bl_idname = "CONTEXT_MT_submenu"
+class SETKEY_MT_submenu(Menu):
+	bl_idname = "SETKEY_MT_submenu"
 	bl_label = "Auto SetKey"
 
 	@classmethod
@@ -396,37 +554,78 @@ class CONTEXT_MT_submenu(Menu):
 
 	def draw(self, context):
 		layout = self.layout
-		layout.operator(SETKEY_Blink.bl_idname, icon="REC")
+		layout.operator(SETKEY_Blink.bl_idname, icon="KEYFRAME_HLT")
 		layout.separator()
 		layout.operator(SETKEY_Transparent_Hide.bl_idname, icon="HIDE_ON")
 		layout.operator(SETKEY_Transparent_Show.bl_idname, icon="HIDE_OFF")
+		layout.separator()
+		layout.operator(SETKEY_Marker.bl_idname, icon="MARKER_HLT")
+
+# Draw UI Sequencer
+class SETKEY_panel_se:
+	bl_space_type = "SEQUENCE_EDITOR"
+	bl_region_type = "UI"
+	bl_category = "Tool"
+	bl_options = {"DEFAULT_CLOSED"}
+
+class SETKEY_PT_panel_se(SETKEY_panel_se, Panel):
+	bl_idname = "SETKEY_PT_panel_se"
+	bl_label = "Auto SetKey"
+
+	@classmethod
+	def poll(self,context):
+		return context.active_object is not None
+
+	def draw(self, context):
+		layout = self.layout
+
+class SETKEY_PT_subpanel_se_1(SETKEY_panel_se, Panel):
+	bl_parent_id = "SETKEY_PT_panel_se"
+	bl_label = "Pause"
+
+	def draw(self, context):
+		layout = self.layout
+		col = layout.column(align=True)
+		col.prop(context.scene.property, "duration_pause")
+		col = layout.column()
+		row = col.row()
+		row.label(text="Create Pauses:")
+		row.scale_x = 15
+		row.operator(SETKEY_Pause.bl_idname, text="", icon="CENTER_ONLY")
 
 classes = (
-	Properties,
+	SETKEY_Properties,
 	SETKEY_Blink,
 	SETKEY_Transparent_Show,
 	SETKEY_Transparent_Hide,
 	SETKEY_Transparent,
-	PANEL_PT_panel,
-	PANEL_PT_subpanel_1,
-	PANEL_PT_subpanel_2,
-	CONTEXT_MT_menu,
-	CONTEXT_MT_submenu
+	SETKEY_Marker_Save,
+	SETKEY_Marker,
+	SETKEY_Pause,
+	SETKEY_PT_panel,
+	SETKEY_PT_subpanel_1,
+	SETKEY_PT_subpanel_2,
+	SETKEY_PT_subpanel_3,
+	SETKEY_PT_subpanel_4,
+	SETKEY_MT_menu,
+	SETKEY_MT_submenu,
+	SETKEY_PT_panel_se,
+	SETKEY_PT_subpanel_se_1
 )
 
 def register():
 	for cls in classes:
 		bpy.utils.register_class(cls)
 
-	bpy.types.Scene.property = PointerProperty(type=Properties)
-	bpy.types.DOPESHEET_MT_context_menu.append(CONTEXT_MT_menu.draw)
+	bpy.types.Scene.property = PointerProperty(type = SETKEY_Properties)
+	bpy.types.DOPESHEET_MT_context_menu.append(SETKEY_MT_menu.draw)
 
 def unregister():
 	for cls in reversed(classes):
 		bpy.utils.unregister_class(cls)
 	
 	del bpy.types.Scene.property
-	bpy.types.DOPESHEET_MT_context_menu.remove(CONTEXT_MT_menu.draw)
+	bpy.types.DOPESHEET_MT_context_menu.remove(SETKEY_MT_menu.draw)
 
 if __name__ == "__main__" :
 	register()
