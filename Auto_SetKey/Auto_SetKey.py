@@ -81,10 +81,10 @@ class SETKEY_Properties(PropertyGroup):
 	)													
 	toggle_type : EnumProperty(
 		items= (
-			("1", "Show", "Set keys for show an object"),    
-			("2", "Hide", "Set keys for hide an object")
+			("1", "Show", "Set keys for show an object"),
+			("2", "In/Out", "FadeIn / FadeOut"),
+			("3", "Hide", "Set keys for hide an object")
 		),
-		name = "Transparency type",
 		default = "2"
 	)
 	duration_pause : IntProperty(
@@ -319,21 +319,40 @@ class SETKEY_Transparent(Operator):
 	def set_key(self, context, group_node):
 		curent_frame = bpy.context.scene.frame_current
 		value = group_node.inputs[1]
-
+		
 		if context.scene.property.toggle_type == "1":
 			value.default_value = 1
+			range_value = 2
 		elif context.scene.property.toggle_type == "2":
+			value.default_value = 1
+			range_value = 4
+		elif context.scene.property.toggle_type == "3":
 			value.default_value = 0
+			range_value = 2
 			
-		for i in range(2):
+		for i in range(range_value):
+			print(i)
+			if i == 2:
+				curent_frame += context.scene.property.duration_fade * 2
+				value.default_value = 0
 			value.keyframe_insert("default_value", frame = curent_frame)
-			curent_frame = curent_frame + context.scene.property.duration_fade
+			curent_frame += context.scene.property.duration_fade
 			value.default_value = not value.default_value
 		return {"FINISHED"}
 
 class SETKEY_Transparent_Hide(SETKEY_Transparent):
 	bl_idname = "action.setkey_transparent_hide"
 	bl_label = "Transparent Hide"
+	bl_options = {"REGISTER", "UNDO"}
+
+	def execute(self, context):
+		context.scene.property.toggle_type = "3"
+		SETKEY_Transparent.execute(self, context)
+		return {'FINISHED'}
+
+class SETKEY_Transparent_InOut(SETKEY_Transparent):
+	bl_idname = "action.setkey_transparent_inout"
+	bl_label = "Transparent In/Out"
 	bl_options = {"REGISTER", "UNDO"}
 
 	def execute(self, context):
@@ -556,8 +575,9 @@ class SETKEY_MT_submenu(Menu):
 		layout = self.layout
 		layout.operator(SETKEY_Blink.bl_idname, icon="KEYFRAME_HLT")
 		layout.separator()
-		layout.operator(SETKEY_Transparent_Hide.bl_idname, icon="HIDE_ON")
 		layout.operator(SETKEY_Transparent_Show.bl_idname, icon="HIDE_OFF")
+		layout.operator(SETKEY_Transparent_InOut.bl_idname, icon="SMOOTHCURVE")
+		layout.operator(SETKEY_Transparent_Hide.bl_idname, icon="HIDE_ON")
 		layout.separator()
 		layout.operator(SETKEY_Marker.bl_idname, icon="MARKER_HLT")
 
@@ -597,6 +617,7 @@ classes = (
 	SETKEY_Properties,
 	SETKEY_Blink,
 	SETKEY_Transparent_Show,
+	SETKEY_Transparent_InOut,
 	SETKEY_Transparent_Hide,
 	SETKEY_Transparent,
 	SETKEY_Marker_Save,
