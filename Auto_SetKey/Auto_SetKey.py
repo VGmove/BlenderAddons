@@ -26,6 +26,7 @@ bl_info = {
 
 import os
 import bpy
+from collections import Counter
 from bpy.props import (StringProperty,
                        BoolProperty,
                        IntProperty,
@@ -105,7 +106,7 @@ class SETKEY_Properties(PropertyGroup):
 		default = True
 	)
 
-#Operators
+# Blink
 class SETKEY_Blink(Operator):
 	bl_idname = "action.setkey_blink"
 	bl_label = "Set Key Blink"
@@ -113,24 +114,31 @@ class SETKEY_Blink(Operator):
 	bl_options = {"REGISTER", "UNDO"}
 
 	def execute(self, context):
-		# Get Materials
+		# Get materials
 		materials = []
 		for object in bpy.context.selected_objects:
-			material = object.active_material
-			if material and material.use_nodes:
-				if context.scene.property.single_user and material.users > 1:
-					user_count = sum(p.active_material == material for p in bpy.context.selected_objects)
-					if material.users != user_count:
-						object.active_material = object.active_material.copy()
-						if object.active_material.node_tree.animation_data:
-							action_material = object.active_material.node_tree.animation_data.action
-							action_material = action_material.copy()
-				if not object.active_material in materials:
-					materials.append(object.active_material)
-			else: continue
+			for id, slot in enumerate(object.material_slots):
+				material = object.material_slots[id].material
+				if material and material.use_nodes:
+					if context.scene.property.single_user and material.users > 1:
+						# Get all materials selected object
+						all_materials = []
+						for obj in bpy.context.selected_objects:
+							for mat in obj.material_slots:
+								all_materials.append(mat.name)
+						# Make single user
+						if material.users != all_materials.count(material.name):
+							material = material.copy()
+							if material.node_tree.animation_data:
+								material.node_tree.animation_data.action = material.node_tree.animation_data.action.copy()
+							object.material_slots[id].material = material
+					# Add material to list
+					if not material in materials:
+						materials.append(material)
+				else: continue
 		
+		# Set key for available materials
 		for material in materials:
-			# Create variable
 			material_nodes = material.node_tree.nodes
 			links = material.node_tree.links
 
@@ -155,6 +163,7 @@ class SETKEY_Blink(Operator):
 				group_node = self.create_group(context, material_output, material_nodes, links)
 				self.set_key(context, group_node)
 		
+		# Set frame cursor in timeline
 		if context.scene.property.move_cursor:
 			curent_frame = bpy.context.scene.frame_current
 			context.scene.frame_set(curent_frame + (context.scene.property.duration_blink * (context.scene.property.count_blink * 2)))
@@ -219,6 +228,7 @@ class SETKEY_Blink(Operator):
 			value.default_value = max(min(value.default_value, context.scene.property.blend_blink), 0)
 		return {"FINISHED"}
 
+# Transparent
 class SETKEY_Transparent(Operator):
 	bl_idname = "action.setkey_transparent"
 	bl_label = "Set Key Transparent"
@@ -229,21 +239,28 @@ class SETKEY_Transparent(Operator):
 		# Get Materials
 		materials = []
 		for object in bpy.context.selected_objects:
-			material = object.active_material
-			if material and material.use_nodes:
-				if context.scene.property.single_user and material.users > 1:
-					user_count = sum(p.active_material == material for p in bpy.context.selected_objects)
-					if material.users != user_count:
-						object.active_material = object.active_material.copy()
-						if object.active_material.node_tree.animation_data:
-							action_material = object.active_material.node_tree.animation_data.action
-							action_material = action_material.copy()
-				if not object.active_material in materials:
-					materials.append(object.active_material)
-			else: continue
+			for id, slot in enumerate(object.material_slots):
+				material = object.material_slots[id].material
+				if material and material.use_nodes:
+					if context.scene.property.single_user and material.users > 1:
+						# Get all materials selected object
+						all_materials = []
+						for obj in bpy.context.selected_objects:
+							for mat in obj.material_slots:
+								all_materials.append(mat.name)
+						# Make single user
+						if material.users != all_materials.count(material.name):
+							material = material.copy()
+							if material.node_tree.animation_data:
+								material.node_tree.animation_data.action = material.node_tree.animation_data.action.copy()
+							object.material_slots[id].material = material
+					# Add material to list
+					if not material in materials:
+						materials.append(material)
+				else: continue
 		
+		# Set key for available materials
 		for material in materials:
-			# Create variable
 			material_nodes = material.node_tree.nodes
 			links = material.node_tree.links
 			
@@ -271,7 +288,8 @@ class SETKEY_Transparent(Operator):
 			if group_node is None:
 				group_node = self.create_group(context, material_output, material_nodes, links)
 				self.set_key(context, group_node)
-				
+		
+		# Set frame cursor in timeline
 		if context.scene.property.move_cursor:
 			curent_frame = bpy.context.scene.frame_current
 			if context.scene.property.toggle_type == "2":
@@ -454,16 +472,18 @@ class SETKEY_Pause(Operator):
 		duration_pause = context.scene.property.duration_pause
 		for marker in markers:
 			end_strip = bpy.context.selected_sequences[-1]
-			marker_offset = marker + start_frame + step # -set_start_frame if start not 0 frame			
+			marker_offset = marker + start_frame + step # '-set_start_frame' if start not 0 frame			
 			if marker_offset in range(end_strip.frame_final_start, end_strip.frame_final_end + 1):
 				next_strip = end_strip.split(marker_offset, "SOFT")
 				if next_strip is None:
 					next_strip = end_strip
 
+				# Set next strip
 				next_strip.frame_start += duration_pause
 				if marker == markers[-1] and marker_offset == end_strip.frame_final_end - duration_pause:
 					next_strip.frame_start -= duration_pause
-				
+
+				# Add images to sequence
 				sequence_image = next_strip.strip_elem_from_frame(marker_offset + duration_pause).filename
 				image = active_strip_path + sequence_image
 				sequences = bpy.context.scene.sequence_editor.sequences
@@ -477,7 +497,7 @@ class SETKEY_Pause(Operator):
 		bpy.context.scene.frame_start = start_frame
 		return {'FINISHED'}
 
-# Draw UI TimeLine
+# Draw UI in TimeLine
 class SETKEY_panel:
 	bl_space_type = "DOPESHEET_EDITOR"
 	bl_region_type = "UI"
@@ -559,6 +579,7 @@ class SETKEY_PT_subpanel_4(SETKEY_panel, Panel):
 		col.prop(context.scene.property, "move_cursor")
 		col.prop(context.scene.property, "single_user")
 
+# Draw UI Context Menu
 class SETKEY_MT_menu(Menu):
 	bl_idname = "SETKEY_MT_menu"
 	bl_label = "Auto SetKey"
@@ -586,7 +607,7 @@ class SETKEY_MT_submenu(Menu):
 		layout.separator()
 		layout.operator(SETKEY_Marker.bl_idname, icon="MARKER_HLT")
 
-# Draw UI Sequencer
+# Draw UI in Sequencer
 class SETKEY_panel_se:
 	bl_space_type = "SEQUENCE_EDITOR"
 	bl_region_type = "UI"
