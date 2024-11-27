@@ -154,6 +154,11 @@ class SETKEY_Blink(Operator):
 			if group_node is None:
 				group_node = self.create_group(context, material_output, material_nodes, links)
 				self.set_key(context, group_node)
+		
+		if context.scene.property.move_cursor:
+			curent_frame = bpy.context.scene.frame_current
+			context.scene.frame_set(curent_frame + (context.scene.property.duration_blink * (context.scene.property.count_blink * 2)))
+		
 		return {"FINISHED"}
 
 	def create_group(self, context, material_output, material_nodes, links):
@@ -212,10 +217,6 @@ class SETKEY_Blink(Operator):
 			curent_frame = curent_frame + context.scene.property.duration_blink
 			value.default_value = not value.default_value
 			value.default_value = max(min(value.default_value, context.scene.property.blend_blink), 0)
-		
-		if context.scene.property.move_cursor:
-			curent_frame = bpy.context.scene.frame_current
-			context.scene.frame_set(curent_frame + (context.scene.property.duration_blink * (context.scene.property.count_blink * 2)))
 		return {"FINISHED"}
 
 class SETKEY_Transparent(Operator):
@@ -270,6 +271,14 @@ class SETKEY_Transparent(Operator):
 			if group_node is None:
 				group_node = self.create_group(context, material_output, material_nodes, links)
 				self.set_key(context, group_node)
+				
+		if context.scene.property.move_cursor:
+			curent_frame = bpy.context.scene.frame_current
+			if context.scene.property.toggle_type == "2":
+				context.scene.frame_set(curent_frame + (context.scene.property.duration_fade * 5))
+			else:
+				context.scene.frame_set(curent_frame + context.scene.property.duration_fade )
+			
 		return {"FINISHED"}
 	
 	def create_group(self, context, material_output, material_nodes, links):
@@ -334,9 +343,6 @@ class SETKEY_Transparent(Operator):
 			value.keyframe_insert("default_value", frame = curent_frame)
 			curent_frame += context.scene.property.duration_fade
 			value.default_value = not value.default_value
-		
-		if context.scene.property.move_cursor:
-			context.scene.frame_set(curent_frame - context.scene.property.duration_fade)
 		return {"FINISHED"}
 
 class SETKEY_Transparent_Hide(SETKEY_Transparent):
