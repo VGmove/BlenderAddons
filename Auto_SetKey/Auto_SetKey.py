@@ -129,7 +129,7 @@ class SETKEY_Blink(Operator):
 						# Make single user
 						if material.users != all_materials.count(material.name):
 							material = material.copy()
-							if material.node_tree.animation_data:
+							if material.node_tree.animation_data and material.node_tree.animation_data.action:
 								material.node_tree.animation_data.action = material.node_tree.animation_data.action.copy()
 							object.material_slots[id].material = material
 					# Add material to list
@@ -251,7 +251,7 @@ class SETKEY_Transparent(Operator):
 						# Make single user
 						if material.users != all_materials.count(material.name):
 							material = material.copy()
-							if material.node_tree.animation_data:
+							if material.node_tree.animation_data and material.node_tree.animation_data.action:
 								material.node_tree.animation_data.action = material.node_tree.animation_data.action.copy()
 							object.material_slots[id].material = material
 					# Add material to list
