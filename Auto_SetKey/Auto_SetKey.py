@@ -121,9 +121,10 @@ class SETKEY_Blink(Operator):
 				if context.scene.property.single_user and material.users > 1:
 					user_count = sum(p.active_material == material for p in bpy.context.selected_objects)
 					if material.users != user_count:
-						print(object.name, material.name, material.users, user_count)
 						object.active_material = object.active_material.copy()
-						object.active_material.node_tree.animation_data.action = object.active_material.node_tree.animation_data.action.copy()
+						if object.active_material.node_tree.animation_data:
+							action_material = object.active_material.node_tree.animation_data.action
+							action_material = action_material.copy()
 				if not object.active_material in materials:
 					materials.append(object.active_material)
 			else: continue
@@ -232,9 +233,10 @@ class SETKEY_Transparent(Operator):
 				if context.scene.property.single_user and material.users > 1:
 					user_count = sum(p.active_material == material for p in bpy.context.selected_objects)
 					if material.users != user_count:
-						print(object.name, material.name, material.users, user_count)
 						object.active_material = object.active_material.copy()
-						object.active_material.node_tree.animation_data.action = object.active_material.node_tree.animation_data.action.copy()
+						if object.active_material.node_tree.animation_data:
+							action_material = object.active_material.node_tree.animation_data.action
+							action_material = action_material.copy()
 				if not object.active_material in materials:
 					materials.append(object.active_material)
 			else: continue
